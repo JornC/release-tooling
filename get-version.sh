@@ -1,41 +1,29 @@
 #!/bin/bash
 
-# Determine the directory in which list-versions.sh is located
+# Source utility functions
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+source "$SCRIPT_DIR/utils.sh"
 
-# Source the utility functions
-source $SCRIPT_DIR/utils.sh
+# Change to the Git root directory
+change_to_git_root
 
-# Main logic of the script
-main() {
-    local BRANCH_NAME=${1:-$(git symbolic-ref --short HEAD)}
-    local current_branch=$(git symbolic-ref --short HEAD)
+# Save the current branch name
+BRANCH_NAME=${1:-$(git symbolic-ref --short HEAD)}
+current_branch=$(git symbolic-ref --short HEAD)
 
-    check_for_uncommitted_changes
+# Ensure there are no uncommitted changes
+check_for_uncommitted_changes
 
-    # Only setup worktree if not on the targeted branch
-    if [ "$BRANCH_NAME" != "$current_branch" ]; then
-        local WORKTREE_PATH="worktrees/$BRANCH_NAME"
-        # Setup or reuse worktree without logging unless necessary
-        if [ ! -d "$WORKTREE_PATH" ]; then
-            mkdir -p worktrees
-            git worktree add "$WORKTREE_PATH" "$BRANCH_NAME" &>/dev/null || {
-                echo "Failed to setup worktree for '$BRANCH_NAME'."
-                exit 1
-            }
-        fi
-        cd "$WORKTREE_PATH" || exit
-    fi
+# Setup worktree and move to it if not on the targeted branch
+if [ "$BRANCH_NAME" != "$current_branch" ]; then
+    setup_and_move_to_worktree "$BRANCH_NAME"
+fi
 
-    # Attempt to get the Maven project version
-    local POM_VERSION=$(get_pom_version)
-    if [ -n "$POM_VERSION" ]; then
-        echo "$POM_VERSION"
-    else
-        echo "Failed to retrieve version."
-        exit 1
-    fi
-}
-
-# Execute the main function with all passed arguments
-main "$@"
+# Attempt to retrieve the Maven project version
+POM_VERSION=$(get_pom_version)
+if [ -n "$POM_VERSION" ]; then
+    echo "$POM_VERSION"
+else
+    echo "Failed to retrieve version."
+    exit 1
+fi
