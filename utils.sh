@@ -47,16 +47,42 @@ check_for_uncommitted_changes() {
     fi
 }
 
-# Function to find the pom.xml location and get the version
-get_pom_version() {
+# Function to find the pom.xml location
+find_pom_location() {
     local pom_locations=("pom.xml" "source/pom.xml")
     for location in "${pom_locations[@]}"; do
         if [[ -f "$location" ]]; then
-            cd "$(dirname "$location")" || exit
-            mvn help:evaluate -Dexpression=project.version -q -DforceStdout -o
+            echo "$location"
             return
         fi
     done
     echo "pom.xml not found."
     exit 1
+}
+
+# Function to get the version from the pom.xml
+get_pom_version() {
+    local pom_location
+    pom_location=$(find_pom_location) # Call find_pom_location to get the pom.xml path
+    if [[ $pom_location == "pom.xml not found." ]]; then
+        echo "$pom_location"
+        exit 1
+    else
+        cd "$(dirname "$pom_location")" || exit
+        mvn help:evaluate -Dexpression=project.version -q -DforceStdout -o
+    fi
+}
+
+# Function to set the new version in the pom.xml using Maven Versions plugin
+set_pom_version() {
+    local NEW_VERSION="$1" # Expecting the new version as the first argument to the function
+    local pom_location
+    pom_location=$(find_pom_location) # Call find_pom_location to get the pom.xml path
+    if [[ $pom_location == "pom.xml not found." ]]; then
+        echo "$pom_location"
+        exit 1
+    else
+        cd "$(dirname "$pom_location")" || exit # Navigate to the directory containing pom.xml
+        mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
+    fi
 }
